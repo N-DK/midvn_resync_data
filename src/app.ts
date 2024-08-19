@@ -37,7 +37,23 @@ initDB();
 
 // resync data
 import resyncService from './services/resync.service';
-resyncService.resyncData('08944FE55T');
+
+const imeis = ['08F4A2930T', '08944FE55T'];
+
+async function resyncImeisSequentially() {
+    for (const imei of imeis) {
+        console.log(`Starting resync for IMEI: ${imei}`);
+        await resyncService.resyncData(imei);
+        console.log(`Finished resync for IMEI: ${imei}`);
+    }
+    console.log('All IMEIs have been processed.');
+}
+
+resyncImeisSequentially();
+
+// import routes
+import route from './routes';
+route(app);
 
 //middlewares handle error
 import {

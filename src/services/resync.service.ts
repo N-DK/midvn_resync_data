@@ -4,7 +4,12 @@ import resyncModel from '../models/resync.model';
 class ResyncService {
     async resyncData(imei: string) {
         const { conn: con } = await getConnection();
-        resyncModel.resyncData(con, imei);
+        return resyncModel.resyncData(con, imei);
+    }
+
+    async getData(params: any, query: any) {
+        const { conn: con } = await getConnection();
+        return await resyncModel.getData(con, params, query);
     }
 }
 
