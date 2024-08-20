@@ -9,14 +9,14 @@ export const getData = async (
     imei: string,
     databaseModel: DatabaseModel,
 ) => {
-    // const response: string = await axios.get(
-    //     `http://njnjcnxc.taixecongnghe.com:9989/download?file=${imei}`,
-    // );
+    const response: string = await axios.get(
+        `http://njnjcnxc.taixecongnghe.com:9989/download?file=${imei}`,
+    );
 
-    const response: string = fs.readFileSync(
-        `./src/common/${imei}.txt`,
-        'utf8',
-    ); // Mock data
+    // const response: string = fs.readFileSync(
+    //     `./src/common/${imei}.txt`,
+    //     'utf8',
+    // ); // Mock data
 
     let data = response
         .split('\n')

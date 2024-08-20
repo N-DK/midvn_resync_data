@@ -4,6 +4,9 @@ import { syncBatch } from '../utils/syncBatch';
 import { getData } from '../utils/getData';
 import getTableName from '../utils/table/getTableName';
 import { setting } from '../constants/setting.constant';
+import configureEnvironment from '../config/dotenv.config';
+
+const { BATCH_SIZE, TIME_SEND } = configureEnvironment();
 
 class ResyncModel extends DatabaseModel {
     constructor() {
@@ -17,7 +20,7 @@ class ResyncModel extends DatabaseModel {
 
                 const interval = setInterval(async () => {
                     console.time(`Time resync data ${imei}`);
-                    const batch = data.splice(0, 200);
+                    const batch = data.splice(0, Number(BATCH_SIZE));
                     if (batch.length === 0) {
                         clearInterval(interval);
                         console.timeEnd(`Time resync data ${imei}`);
@@ -26,7 +29,7 @@ class ResyncModel extends DatabaseModel {
                     }
                     await syncBatch(con, batch, device, this);
                     console.timeEnd(`Time resync data ${imei}`);
-                }, 1200);
+                }, Number(TIME_SEND));
             } catch (error: any) {
                 console.error('Error resync data: ', error.message);
                 reject(error); // Bắt lỗi và từ chối Promise
