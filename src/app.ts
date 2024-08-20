@@ -42,9 +42,9 @@ const imeis = ['08F4A2930T', '08944FE55T'];
 
 async function resyncImeisSequentially() {
     for (const imei of imeis) {
-        console.log(`Starting resync for IMEI: ${imei}`);
+        console.time(`Time resync for IMEI: ${imei}`);
         await resyncService.resyncData(imei);
-        console.log(`Finished resync for IMEI: ${imei}`);
+        console.timeEnd(`Time resync for IMEI: ${imei}`);
     }
     console.log('All IMEIs have been processed.');
 }

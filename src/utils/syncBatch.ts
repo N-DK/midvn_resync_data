@@ -3,6 +3,9 @@ import { saveTable } from './table/saveTable';
 import { PoolConnection } from 'mysql2';
 import DatabaseModel from '../models/database.model';
 import { FILED_TBL_GPS } from '../constants/setting.constant';
+import configureEnvironment from '../config/dotenv.config';
+
+const { MAP_SERVER } = configureEnvironment();
 
 export const syncBatch = async (
     con: PoolConnection,
@@ -14,8 +17,9 @@ export const syncBatch = async (
         await Promise.all(
             batch.map(async (item) => {
                 const { data: speedData = {} } = await axios.get(
-                    `http://localhost:3001/api/v1/check-way?lat=${item.latitude}&lng=${item.longitude}`,
+                    `${MAP_SERVER}/api/v1/check-way?lat=${item.latitude}&lng=${item.longitude}`,
                 );
+
                 item.max_speed = speedData.max_speed;
                 item.min_speed = speedData.min_speed;
 
