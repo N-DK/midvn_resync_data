@@ -5,10 +5,14 @@ import { getData } from '../utils/getData';
 import getTableName from '../utils/table/getTableName';
 import { setting } from '../constants/setting.constant';
 import configureEnvironment from '../config/dotenv.config';
+import { fork } from 'child_process';
+import redisModel from './redis.model';
 
 const { BATCH_SIZE, TIME_SEND } = configureEnvironment();
 
 class ResyncModel extends DatabaseModel {
+    private number_of_devices_resync: number = 0;
+
     constructor() {
         super();
     }
@@ -24,7 +28,7 @@ class ResyncModel extends DatabaseModel {
                     if (batch.length === 0) {
                         clearInterval(interval);
                         console.timeEnd(`Time resync data ${imei}`);
-                        resolve(true); // Đánh dấu hoàn thành quá trình resync
+                        resolve(true);
                         return;
                     }
                     await syncBatch(con, batch, device, this);
@@ -32,8 +36,65 @@ class ResyncModel extends DatabaseModel {
                 }, Number(TIME_SEND));
             } catch (error: any) {
                 console.error('Error resync data: ', error.message);
-                reject(error); // Bắt lỗi và từ chối Promise
+                reject(error);
             }
+        });
+    }
+
+    async resyncMultipleDevices(con: PoolConnection, imeis: string[]) {
+        console.time(`Time resync multiple devices ${imeis}`);
+        await Promise.all(imeis.map((imei) => this.runChildProcess(imei)));
+
+        try {
+            const { data } = await redisModel?.get(
+                'number_of_devices_resync',
+                './src/model/resync.model.ts',
+                1,
+            );
+
+            this.number_of_devices_resync = Number(data) || 0;
+
+            const updatedCount = this.number_of_devices_resync + imeis.length;
+
+            const res = await redisModel.setWithExpired(
+                'number_of_devices_resync',
+                `${updatedCount}`,
+                60 * 60 * 24,
+                './src/model/resync.model.ts',
+                Date.now(),
+            );
+
+            this.number_of_devices_resync = updatedCount;
+
+            console.timeEnd(`Time resync multiple devices ${imeis}`);
+        } catch (error) {
+            console.error('Error handling Redis operations:', error);
+        }
+    }
+
+    async runChildProcess(imei: string) {
+        return new Promise(async (resolve, reject) => {
+            const child = fork('./src/utils/resyncWorker.ts', [imei]);
+
+            child.on('exit', (code) => {
+                if (code === 0) {
+                    resolve(true);
+                } else {
+                    reject(
+                        new Error(
+                            `Process exited with code ${code} for IMEI: ${imei}`,
+                        ),
+                    );
+                }
+            });
+
+            child.on('error', (error) => {
+                console.error(
+                    `Lỗi trong child process cho IMEI: ${imei}`,
+                    error,
+                );
+                reject(error);
+            });
         });
     }
 

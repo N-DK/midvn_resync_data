@@ -131,6 +131,8 @@ class RedisModel {
             await client.setEx(key, times, value);
             return { result: true, data: [] };
         } catch (error) {
+            console.log(error);
+
             mylogger.error('interact setWithExpired redis error', [
                 path || '',
                 requestId || Date.now,

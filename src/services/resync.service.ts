@@ -7,6 +7,11 @@ class ResyncService {
         return resyncModel.resyncData(con, imei);
     }
 
+    async resyncMultipleDevices(imeis: string[]) {
+        const { conn: con } = await getConnection();
+        return resyncModel.resyncMultipleDevices(con, imeis);
+    }
+
     async getData(params: any, query: any) {
         const { conn: con } = await getConnection();
         return await resyncModel.getData(con, params, query);
