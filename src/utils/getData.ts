@@ -16,13 +16,18 @@ export const getData = async (
             `http://njnjcnxc.taixecongnghe.com:9989/download?file=${imei}`,
         );
 
-        // Alternatively, read mock data from file
         // const response: string = fs.readFileSync(
         //     `./src/common/${imei}.txt`,
         //     'utf8',
         // ); // Mock data
 
         const rawData: string = response?.data;
+
+        const fileSizeInBytes = Buffer.byteLength(rawData, 'utf8');
+        const fileSizeInMegabytes = fileSizeInBytes / 1000000.0;
+        console.log(
+            `fileSizeInMegabytes of ${imei}: ${fileSizeInMegabytes} MB`,
+        );
 
         if (!rawData) throw new Error('No data received from API.');
 

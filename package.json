@@ -1,6 +1,6 @@
 {
     "name": "nodejs-temp",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "A temple typescript with nodejs/express",
     "main": "src/server.ts",
     "scripts": {
