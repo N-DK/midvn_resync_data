@@ -43,6 +43,9 @@ initRedis();
 import DatabaseModel from './models/database.model';
 import resyncService from './services/resync.service';
 import redisModel from './models/redis.model';
+import configureEnvironment from './config/dotenv.config';
+
+const { PROCESS_BATCH_SIZE } = configureEnvironment();
 
 const fetch = async () => {
     const database = new DatabaseModel();
@@ -58,7 +61,7 @@ const fetch = async () => {
             'id',
             'ASC',
             data !== null ? Number(data) : 0,
-            8,
+            Number(PROCESS_BATCH_SIZE),
         );
     };
 

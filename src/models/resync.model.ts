@@ -43,6 +43,7 @@ class ResyncModel extends DatabaseModel {
 
     async resyncMultipleDevices(con: PoolConnection, imeis: string[]) {
         console.time(`Time resync multiple devices ${imeis}`);
+
         await Promise.all(imeis.map((imei) => this.runChildProcess(imei)));
 
         try {
