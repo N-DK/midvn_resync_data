@@ -8,7 +8,7 @@ import configureEnvironment from '../config/dotenv.config';
 import { fork } from 'child_process';
 import redisModel from './redis.model';
 
-const { BATCH_SIZE, TIME_SEND } = configureEnvironment();
+const { BATCH_SIZE, TIME_SEND, PROCESS_BATCH_SIZE } = configureEnvironment();
 
 class ResyncModel extends DatabaseModel {
     private number_of_devices_resync: number = 0;
@@ -41,35 +41,77 @@ class ResyncModel extends DatabaseModel {
         });
     }
 
+    // async resyncMultipleDevices(con: PoolConnection, imeis: string[]) {
+    //     console.time(`Time resync multiple devices ${imeis}`);
+
+    //     await Promise.all(imeis.map((imei) => this.runChildProcess(imei)));
+
+    //     try {
+    //         const { data } = await redisModel?.get(
+    //             'number_of_devices_resync',
+    //             './src/model/resync.model.ts',
+    //             1,
+    //         );
+
+    //         this.number_of_devices_resync = Number(data) || 0;
+
+    //         const updatedCount = this.number_of_devices_resync + imeis.length;
+
+    //         const res = await redisModel.setWithExpired(
+    //             'number_of_devices_resync',
+    //             `${updatedCount}`,
+    //             60 * 60 * 24,
+    //             './src/model/resync.model.ts',
+    //             Date.now(),
+    //         );
+
+    //         this.number_of_devices_resync = updatedCount;
+
+    //         console.timeEnd(`Time resync multiple devices ${imeis}`);
+    //     } catch (error) {
+    //         console.error('Error handling Redis operations:', error);
+    //     }
+    // }
+
     async resyncMultipleDevices(con: PoolConnection, imeis: string[]) {
-        console.time(`Time resync multiple devices ${imeis}`);
+        const BATCH_SIZE = 8;
+        const imeiGroups = [];
 
-        await Promise.all(imeis.map((imei) => this.runChildProcess(imei)));
+        for (let i = 0; i < imeis.length; i += BATCH_SIZE) {
+            imeiGroups.push(imeis.slice(i, i + BATCH_SIZE));
+        }
 
-        try {
-            const { data } = await redisModel?.get(
-                'number_of_devices_resync',
-                './src/model/resync.model.ts',
-                1,
-            );
+        for (const group of imeiGroups) {
+            console.time(`Time resync multiple devices ${group}`);
+            await Promise.all(group.map((imei) => this.runChildProcess(imei)));
+            try {
+                const { data } = await redisModel.hGet(
+                    'number_of_devices_resynced',
+                    `number_of_devices_resynced_${PROCESS_BATCH_SIZE}`,
+                    'app.ts',
+                    Date.now(),
+                );
 
-            this.number_of_devices_resync = Number(data) || 0;
+                this.number_of_devices_resync =
+                    Number(data) || Number(PROCESS_BATCH_SIZE);
 
-            const updatedCount = this.number_of_devices_resync + imeis.length;
+                const updatedCount =
+                    this.number_of_devices_resync + group.length;
 
-            const res = await redisModel.setWithExpired(
-                'number_of_devices_resync',
-                `${updatedCount}`,
-                60 * 60 * 24,
-                './src/model/resync.model.ts',
-                Date.now(),
-            );
+                await redisModel.hSet(
+                    'number_of_devices_resynced',
+                    `number_of_devices_resynced_${PROCESS_BATCH_SIZE}`,
+                    `${updatedCount}`,
+                    './src/model/resync.model.ts',
+                    Date.now(),
+                );
 
-            this.number_of_devices_resync = updatedCount;
+                this.number_of_devices_resync = updatedCount;
 
-            console.timeEnd(`Time resync multiple devices ${imeis}`);
-        } catch (error) {
-            console.error('Error handling Redis operations:', error);
+                console.timeEnd(`Time resync multiple devices ${group}`);
+            } catch (error) {
+                console.error('Error handling Redis operations:', error);
+            }
         }
     }
 

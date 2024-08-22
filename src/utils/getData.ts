@@ -21,7 +21,12 @@ export const getData = async (
         //     'utf8',
         // ); // Mock data
 
-        const rawData: string = response?.data;
+        let rawData: string = response?.data;
+
+        // Convert rawData to a string if it's an object
+        if (typeof rawData === 'object') {
+            rawData = JSON.stringify(rawData);
+        }
 
         const fileSizeInBytes = Buffer.byteLength(rawData, 'utf8');
         const fileSizeInMegabytes = fileSizeInBytes / 1000000.0;

@@ -47,52 +47,37 @@ import configureEnvironment from './config/dotenv.config';
 
 const { PROCESS_BATCH_SIZE } = configureEnvironment();
 
-const fetch = async () => {
+const resync = async () => {
     const database = new DatabaseModel();
     const { conn: con } = await getConnection();
 
-    const getDevices = async (data: any) => {
-        return await database.select(
-            con,
-            'tbl_device',
-            'id, imei',
-            'dev_id IS NOT NULL',
-            [],
-            'id',
-            'ASC',
-            data !== null ? Number(data) : 0,
-            Number(PROCESS_BATCH_SIZE),
-        );
-    };
+    const { data } = await redisModel.hGet(
+        'number_of_devices_resynced',
+        `number_of_devices_resynced_${PROCESS_BATCH_SIZE}`,
+        'app.ts',
+        Date.now(),
+    );
 
-    try {
-        let { data } = await redisModel.get('number_of_devices_resync', '', 1);
+    console.log('data redis in app.ts: ', data);
 
-        console.log('data redis in app.ts: ', data);
+    let res: any = await database.select(
+        con,
+        'tbl_device',
+        'id, imei',
+        'dev_id IS NOT NULL',
+        [],
+        'id',
+        'ASC',
+        data !== null ? Number(data) : Number(PROCESS_BATCH_SIZE),
+        1000,
+    );
 
-        let res: any = await getDevices(data);
+    const imeis = res.map((item: any) => item.imei);
 
-        while (res.length > 0) {
-            const imeis = res.map((item: any) => item.imei);
-
-            await resyncService.resyncMultipleDevices(imeis);
-
-            const redisResult = await redisModel.get(
-                'number_of_devices_resync',
-                'app.ts',
-                1,
-            );
-
-            data = redisResult?.data;
-
-            res = await getDevices(data);
-        }
-    } catch (error) {
-        console.error('Error during fetch operation:', error);
-    }
+    resyncService.resyncMultipleDevices(imeis);
 };
 
-fetch();
+resync();
 
 // import routes
 import route from './routes';
