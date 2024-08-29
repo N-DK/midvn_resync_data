@@ -16,6 +16,10 @@ class ResyncService {
         const { conn: con } = await getConnection();
         return await resyncModel.getData(con, params, query);
     }
+
+    async saveToTxt(imeis: string[]) {
+        return resyncModel.saveDataToTxt(imeis);
+    }
 }
 
 export default new ResyncService();

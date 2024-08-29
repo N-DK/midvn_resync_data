@@ -7,9 +7,21 @@ import { setting } from '../constants/setting.constant';
 import configureEnvironment from '../config/dotenv.config';
 import { fork } from 'child_process';
 import redisModel from './redis.model';
+import axios from 'axios';
+import https from 'https';
+import fs from 'fs';
 
-const { BATCH_SIZE, TIME_SEND, PROCESS_BATCH_SIZE } = configureEnvironment();
-
+const {
+    BATCH_SIZE,
+    TIME_SEND,
+    PROCESS_BATCH_SIZE,
+    BATCH_SIZE_TXT,
+    TIME_SEND_TXT,
+} = configureEnvironment();
+const axiosInstance = axios.create({
+    httpsAgent: new https.Agent({ keepAlive: true }),
+    timeout: 60000,
+});
 class ResyncModel extends DatabaseModel {
     private number_of_devices_resync: number = 0;
 
@@ -140,6 +152,264 @@ class ResyncModel extends DatabaseModel {
             });
         });
     }
+
+    async saveDataToTxt(imeis: string[]) {
+        const BATCH_SIZE = Number(BATCH_SIZE_TXT);
+
+        console.log(imeis.length);
+
+        const imeiGroups = [];
+        let count = 1;
+
+        // try {
+        //     let count = 1;
+
+        //     const interval = setInterval(async () => {
+        //         if (imeis.length === 0) {
+        //             clearInterval(interval);
+        //             return;
+        //         }
+
+        //         console.time(`Download ${BATCH_SIZE} files ${count} times`);
+
+        //         const group = imeis.splice(0, BATCH_SIZE);
+
+        //         await new Promise(async (resolve, reject) => {
+        //             for (const imei of group) {
+        //                 try {
+        //                     const response = await this.fetchDataWithRetry(
+        //                         imei,
+        //                     );
+
+        //                     if (!response) {
+        //                         continue;
+        //                     }
+
+        //                     let rawData: string = response.data;
+        //                     const fileSizeInBytes = Buffer.byteLength(
+        //                         rawData,
+        //                         'utf8',
+        //                     );
+        //                     const fileSizeInMegabytes =
+        //                         fileSizeInBytes / 1000000.0;
+        //                     console.log(
+        //                         `fileSizeInMegabytes of ${imei}: ${fileSizeInMegabytes} MB`,
+        //                     );
+
+        //                     fs.writeFileSync(
+        //                         `./src/common/${imei}.txt`,
+        //                         rawData,
+        //                         'utf8',
+        //                     );
+
+        //                     const result = fs.readFileSync(
+        //                         `./src/common/${imei}.txt`,
+        //                         'utf8',
+        //                     );
+        //                     let data = result
+        //                         .split('\n')
+        //                         .filter((line) => line.trim() !== '')
+        //                         .map((jsonString) => {
+        //                             try {
+        //                                 return JSON.parse(jsonString);
+        //                             } catch (error) {
+        //                                 console.error(
+        //                                     'Failed to parse JSON:',
+        //                                     error,
+        //                                 );
+        //                                 return null;
+        //                             }
+        //                         })
+        //                         .filter((item) => item !== null);
+
+        //                     const maxTime = Math.max(
+        //                         ...data.map((item) => item.tm),
+        //                     );
+        //                     console.log(
+        //                         'TIME: ',
+        //                         new Date(data[0].tm * 1000),
+        //                         new Date(maxTime * 1000),
+        //                     );
+        //                 } catch (error: any) {
+        //                     console.log(
+        //                         'Error save data to txt: ',
+        //                         error.message,
+        //                     );
+        //                 }
+        //             }
+        //             resolve(true);
+        //         });
+
+        //         console.timeEnd(`Download ${BATCH_SIZE} files ${count} times`);
+        //         count++;
+
+        //         console.log(imeis.length);
+
+        //         if (imeis.length === 0) {
+        //             clearInterval(interval);
+        //         } else {
+        //             console.log('Cho nghỉ 300s nha');
+        //         }
+        //     }, 10 * 1000); // 30 giây nghỉ giữa các lần tải
+        // } catch (error: any) {
+        //     console.error('Error in resyncFiles: ', error.message);
+        // }
+
+        for (let i = 0; i < imeis.length; i += BATCH_SIZE) {
+            imeiGroups.push(imeis.slice(i, i + BATCH_SIZE));
+        }
+
+        for (const group of imeiGroups) {
+            console.time(`Download ${BATCH_SIZE} files ${count} times`);
+            for (const imei of group) {
+                try {
+                    const response: any = await axiosInstance.get(
+                        `http://njnjcnxc.taixecongnghe.com:9989/download?file=${imei}`,
+                    );
+
+                    if (!response) {
+                        continue;
+                    }
+
+                    let rawData: string = response?.data;
+
+                    const fileSizeInBytes = Buffer.byteLength(rawData, 'utf8');
+                    const fileSizeInMegabytes = fileSizeInBytes / 1000000.0;
+                    console.log(
+                        `fileSizeInMegabytes of ${imei}: ${fileSizeInMegabytes} MB`,
+                    );
+
+                    fs.writeFileSync(
+                        `./src/common/${imei}.txt`,
+                        response.data,
+                        'utf8',
+                    );
+
+                    const result: string = fs.readFileSync(
+                        `./src/common/${imei}.txt`,
+                        'utf8',
+                    );
+
+                    let data = result
+                        .split('\n')
+                        .filter((line) => line.trim() !== '')
+                        .map((jsonString) => {
+                            try {
+                                return JSON.parse(jsonString);
+                            } catch (error) {
+                                console.error('Failed to parse JSON:', error);
+                                return null;
+                            }
+                        })
+                        .filter((item) => item !== null)
+                        .sort((a, b) => a.tm - b.tm);
+                    console.log(
+                        'TIME: ',
+                        new Date(data[0].tm * 1000),
+                        new Date(data[data.length - 1].tm * 1000),
+                    );
+                } catch (error: any) {
+                    console.log('Error save data to txt: ', error.message);
+                }
+            }
+            console.timeEnd(`Download ${BATCH_SIZE} files ${count} times`);
+            count++;
+            console.log('Cho ta nghỉ 30s nha');
+            await this.sleep(Number(TIME_SEND_TXT) * 1000);
+            console.log('Đã nghỉ 30s rồi nè');
+        }
+    }
+
+    async fetchDataWithRetry(imei: string, retries: number = 3): Promise<any> {
+        try {
+            return await axiosInstance.get(
+                `http://njnjcnxc.taixecongnghe.com:9989/download?file=${imei}`,
+            );
+        } catch (error: any) {
+            if (retries > 0 && error.code === 'ECONNRESET') {
+                console.log(`Retrying download for ${imei}...`);
+                await this.sleep(5 * 1000);
+                return this.fetchDataWithRetry(imei, retries - 1);
+            }
+            // throw error;
+        }
+    }
+
+    async sleep(ms: number) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    // async saveDataToTxt(imeis: string[]) {
+    //     const BATCH_SIZE = 15;
+    //     const imeiGroups = [];
+    //     let count = 1;
+
+    //     for (let i = 0; i < imeis.length; i += BATCH_SIZE) {
+    //         imeiGroups.push(imeis.slice(i, i + BATCH_SIZE));
+    //     }
+
+    //     for (const group of imeiGroups) {
+    //         console.time(`Download ${BATCH_SIZE} files ${count} times`);
+    //         for (const imei of group) {
+    //             try {
+    //                 const response: any = await axios
+    //                     .create({
+    //                         httpsAgent: new https.Agent({ keepAlive: true }),
+    //                     })
+    //                     .get(
+    //                         `http://njnjcnxc.taixecongnghe.com:9989/download?file=${imei}`,
+    //                     );
+
+    //                 let rawData: string = response?.data;
+
+    //                 const fileSizeInBytes = Buffer.byteLength(rawData, 'utf8');
+    //                 const fileSizeInMegabytes = fileSizeInBytes / 1000000.0;
+    //                 console.log(
+    //                     `fileSizeInMegabytes of ${imei}: ${fileSizeInMegabytes} MB`,
+    //                 );
+    //                 // lưu file .txt vào thư mục src/common
+    //                 fs.writeFileSync(
+    //                     `./src/common/${imei}.txt`,
+    //                     response.data,
+    //                     'utf8',
+    //                 );
+
+    //                 const result: string = fs.readFileSync(
+    //                     `./src/common/${imei}.txt`,
+    //                     'utf8',
+    //                 ); // Mock data
+
+    //                 let data = result
+    //                     .split('\n')
+    //                     .filter((line) => line.trim() !== '')
+    //                     .map((jsonString) => {
+    //                         try {
+    //                             return JSON.parse(jsonString);
+    //                         } catch (error) {
+    //                             console.error('Failed to parse JSON:', error);
+    //                             return null; // or handle this error as needed
+    //                         }
+    //                     })
+    //                     .filter((item) => item !== null); // Filter out null values from failed parsing
+
+    //                 // Lấy thời gian lơn nhất
+    //                 const maxTime = Math.max(...data.map((item) => item.tm));
+    //                 console.log(
+    //                     'TIME: ',
+    //                     new Date(data[0].tm * 1000),
+    //                     new Date(maxTime * 1000),
+    //                 );
+    //             } catch (error: any) {
+    //                 console.log('Error save data to txt: ', error.message);
+    //             }
+    //         }
+    //         console.timeEnd(`Download ${BATCH_SIZE} files ${count} times`);
+    //         count++;
+    //         console.log('Cho ta nghỉ 30s nha');
+    //         await this.sleep(30 * 1000);
+    //         console.log('Đã nghỉ 30s rồi nè');
+    //     }
+    // }
 
     async getData(con: PoolConnection, params: any, query: any) {
         try {

@@ -44,6 +44,8 @@ import DatabaseModel from './models/database.model';
 import resyncService from './services/resync.service';
 import redisModel from './models/redis.model';
 import configureEnvironment from './config/dotenv.config';
+import axios from 'axios';
+import fs from 'fs';
 
 const { PROCESS_BATCH_SIZE } = configureEnvironment();
 
@@ -62,19 +64,21 @@ const resync = async () => {
 
     let res: any = await database.select(
         con,
-        'tbl_device',
+        tables.tableDevice,
         'id, imei',
-        'dev_id IS NOT NULL',
-        [],
+        'dev_id IS NOT NULL AND device_status_id = ?',
+        [3],
         'id',
         'ASC',
-        data !== null ? Number(data) : Number(PROCESS_BATCH_SIZE),
-        1000,
+        0, // data !== null ? Number(data) : Number(PROCESS_BATCH_SIZE)
+        999999, // 1000
     );
 
     const imeis = res.map((item: any) => item.imei);
 
-    resyncService.resyncMultipleDevices(imeis);
+    resyncService.saveToTxt(imeis);
+
+    // resyncService.resyncMultipleDevices(imeis);
 };
 
 resync();
@@ -96,6 +100,7 @@ app.use(returnError);
 
 //init cron job
 import IssueTask from './tasks/issue.task';
+import { tables } from './constants/tableName.constant';
 IssueTask.checkOverload().start();
 
 export default app;

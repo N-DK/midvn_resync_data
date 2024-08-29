@@ -1,11 +1,11 @@
 {
     "name": "nodejs-temp",
-    "version": "1.0.6",
-    "description": "A temple typescript with nodejs/express",
+    "version": "1.0.7",
+    "description": "Resync",
     "main": "src/server.ts",
     "scripts": {
         "build": "npx tsc",
-        "start": "nodemon server.ts",
+        "start": "ts-node server.ts",
         "dev": "tsc -w & nodemon src/server.ts",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
