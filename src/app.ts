@@ -36,8 +36,8 @@ import { getConnection, initDB } from './dbs/init.mysql';
 initDB();
 
 // init redis
-import { initRedis } from './dbs/init.redis';
-initRedis();
+// import { initRedis } from './dbs/init.redis';
+// initRedis();
 
 // resync data
 import DatabaseModel from './models/database.model';

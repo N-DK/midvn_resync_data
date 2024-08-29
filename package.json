@@ -1,6 +1,6 @@
 {
     "name": "nodejs-temp",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "description": "Resync",
     "main": "src/server.ts",
     "scripts": {

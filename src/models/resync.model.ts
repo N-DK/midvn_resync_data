@@ -263,9 +263,7 @@ class ResyncModel extends DatabaseModel {
             console.time(`Download ${BATCH_SIZE} files ${count} times`);
             for (const imei of group) {
                 try {
-                    const response: any = await axiosInstance.get(
-                        `http://njnjcnxc.taixecongnghe.com:9989/download?file=${imei}`,
-                    );
+                    const response: any = await this.fetchDataWithRetry(imei);
 
                     if (!response) {
                         continue;
@@ -314,9 +312,9 @@ class ResyncModel extends DatabaseModel {
             }
             console.timeEnd(`Download ${BATCH_SIZE} files ${count} times`);
             count++;
-            console.log('Cho ta nghỉ 30s nha');
+            console.log(`Nghỉ ${TIME_SEND_TXT}s nha`);
             await this.sleep(Number(TIME_SEND_TXT) * 1000);
-            console.log('Đã nghỉ 30s rồi nè');
+            console.log(`Đã nghỉ ${TIME_SEND_TXT}s rồi nè`);
         }
     }
 
@@ -331,7 +329,7 @@ class ResyncModel extends DatabaseModel {
                 await this.sleep(5 * 1000);
                 return this.fetchDataWithRetry(imei, retries - 1);
             }
-            // throw error;
+            throw error;
         }
     }
 
