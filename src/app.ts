@@ -50,33 +50,37 @@ import fs from 'fs';
 const { PROCESS_BATCH_SIZE } = configureEnvironment();
 
 const resync = async () => {
-    const database = new DatabaseModel();
-    const { conn: con } = await getConnection();
+    try {
+        const database = new DatabaseModel();
+        const { conn: con } = await getConnection();
 
-    const { data } = await redisModel.hGet(
-        'number_of_devices_resynced',
-        `number_of_devices_resynced_${PROCESS_BATCH_SIZE}`,
-        'app.ts',
-        Date.now(),
-    );
+        const { data } = await redisModel.hGet(
+            'number_of_devices_resynced',
+            `number_of_devices_resynced_${PROCESS_BATCH_SIZE}`,
+            'app.ts',
+            Date.now(),
+        );
 
-    console.log('data redis in app.ts: ', data);
+        console.log('data redis in app.ts: ', data);
 
-    let res: any = await database.select(
-        con,
-        tables.tableDevice,
-        'id, imei',
-        'dev_id IS NOT NULL AND device_status_id = ?',
-        [3],
-        'id',
-        'ASC',
-        0, // data !== null ? Number(data) : Number(PROCESS_BATCH_SIZE)
-        999999, // 1000
-    );
+        let res: any = await database.select(
+            con,
+            tables.tableDevice,
+            'id, imei',
+            'dev_id IS NOT NULL AND device_status_id = ?',
+            [3],
+            'id',
+            'ASC',
+            0, // data !== null ? Number(data) : Number(PROCESS_BATCH_SIZE)
+            999999, // 1000
+        );
 
-    const imeis = res.map((item: any) => item.imei);
+        const imeis = res.map((item: any) => item.imei);
 
-    resyncService.saveToTxt(imeis);
+        resyncService.saveToTxt(imeis);
+    } catch (error) {
+        console.log(error);
+    }
 
     // resyncService.resyncMultipleDevices(imeis);
 };
